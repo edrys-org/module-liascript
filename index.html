@@ -13,15 +13,53 @@
     <script src="https://edrys-org.github.io/edrys/module/edrys.js"></script>
 
     <script defer src="https://edrys-org.github.io/edrys/module/vendor/alpine.min.js"></script>
+
+    <script>
+        function init(iframe) {
+            Edrys.onMessage(({
+                from,
+                subject,
+                body
+            }) => {
+                if (Edrys.username !== from) {
+                    iframe.contentWindow.postMessage({
+                        subject: subject,
+                        body: body
+                    }, "*")
+                }
+            })
+
+            window.addEventListener('message', function (e) {
+                // Get the sent data
+                const msg = e.data;
+
+                switch (msg.subject) {
+                    case "init":
+                        iframe.contentWindow.postMessage({
+                            subject: msg.subject,
+                            body: true
+                        }, "*")
+                        break
+
+                    default:
+                        // this is required in order to transmit only messages
+                        // from LiaScript otherwise it will loop forever
+                        if (!(msg.event && msg.event == "message"))
+                            Edrys.sendMessage(msg.subject, msg.body)
+                }
+            });
+        }
+    </script>
+
 </head>
 
 <body>
     <template x-if="!!edrys && !!url" x-data="{ edrys: undefined, url: undefined }" x-init="Edrys.onUpdate((e) => { 
                             edrys = {...e} 
-                            url = `https://liascript.github.io/course/?${edrys.module.config.course}` 
+                            url = `https://liascript.github.io/course/?${Edrys.liveRoom.name == 'Lobby' ? edrys.module.config.course : btoa(JSON.stringify({'backend':'edrys','course':edrys.module.config.course,'room':Edrys.liveRoom.name}))}` 
                       })">
 
-        <iframe :src="url" frameborder="0" style="width:100%;height:100%;"
+        <iframe :src="url" frameborder="0" style="width:100%;height:100%;" onload="init(this)"
             allow="camera; microphone; fullscreen; display-capture;"></iframe>
     </template>
 
